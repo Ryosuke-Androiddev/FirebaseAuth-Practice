@@ -1,10 +1,12 @@
 package com.example.firebaseauth
 
+import android.net.Uri
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.widget.Toast
 import com.example.firebaseauth.databinding.ActivityMainBinding
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.UserProfileChangeRequest
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -26,7 +28,7 @@ class MainActivity : AppCompatActivity() {
         auth = FirebaseAuth.getInstance()
 
         /** First, your login status will be logged out!! */
-        auth .signOut()
+        //auth .signOut()
 
         binding.btnRegister.setOnClickListener{
             register()
@@ -34,12 +36,42 @@ class MainActivity : AppCompatActivity() {
         binding.btnLogin.setOnClickListener{
             login()
         }
+        binding.btnUpdateProfile.setOnClickListener{
+            updateProfile()
+        }
     }
 
     // TextView shows your login status when lifecycle begin!!
     override fun onStart() {
         super.onStart()
         checkLoggedInstance()
+    }
+
+    private fun updateProfile(){
+
+        auth.currentUser?.let { user->
+
+            val username = binding.etUsername.text.toString()
+            val photoURI = Uri.parse("android.resource://$packageName/${R.drawable.logo_black_square}")
+            val profileUpdates = UserProfileChangeRequest.Builder()
+                .setDisplayName(username)
+                .setPhotoUri(photoURI)
+                .build()
+
+            CoroutineScope(Dispatchers.IO).launch {
+                try {
+                    user.updateProfile(profileUpdates).await()
+                    withContext(Dispatchers.IO){
+                        checkLoggedInstance()
+                        Toast.makeText(this@MainActivity,"Successfully update your profile!!",Toast.LENGTH_LONG).show()
+                    }
+                }catch (e: Exception){
+                    withContext(Dispatchers.IO){
+                        Toast.makeText(this@MainActivity,e.toString(),Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
+        }
     }
 
     private fun register(){
@@ -83,10 +115,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun checkLoggedInstance() {
-        if (auth.currentUser == null){
+        val user = auth.currentUser
+        if (user == null){
             binding.tvLoggedIn.text = "Not Logged in!"
         } else{
             binding.tvLoggedIn.text = "Now, you are Logged in!!"
+            binding.etUsername.setText(user.displayName)
+            binding.ivProfilePicture.setImageURI(user.photoUrl)
         }
     }
 }
